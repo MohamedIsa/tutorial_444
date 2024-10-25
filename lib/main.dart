@@ -1,9 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+// added to pubspec.yaml file
+//  flutter_local_notifications: ^17.2.3
+// shared_preferences: ^2.3.2
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('app_icon');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
   runApp(const MyApp());
 }
 
@@ -37,6 +53,30 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _loadTasks();
+  }
+
+  void scheduleTaskNotification(Task task) async {
+    final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'your_channel_id',
+      'your_channel_name',
+      channelDescription: 'your_channel_description',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await flutterLocalNotificationsPlugin.show(
+      task.hashCode,
+      'Reminder: ${task.title}',
+      'Task "${task.title}" is ${task.status} and due on ${task.dueDate}',
+      platformChannelSpecifics,
+      payload: 'item x',
+    );
   }
 
   Future<void> _loadTasks() async {
@@ -94,6 +134,9 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       tasks.add(task);
       _saveTasks();
+      if (task.status == 'Not Started' || task.status == 'In Progress') {
+        scheduleTaskNotification(task);
+      }
     });
   }
 
@@ -529,186 +572,192 @@ class _AddTaskState extends State<AddTask> {
         title: Text(widget.title,
             style: const TextStyle(color: Colors.white, fontSize: 20.0)),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF4A90E2), Color(0xFF50A7C2)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      body: SingleChildScrollView(
+        child: Container(
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4A90E2), Color(0xFF50A7C2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Add New Task',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Container(
-                margin: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListTile(
-                  leading: const Icon(Icons.title, color: Colors.blue),
-                  title: TextField(
-                    controller: titlecontroller,
-                    decoration: const InputDecoration(
-                      labelText: 'Enter Title',
-                      labelStyle: TextStyle(color: Colors.blue),
-                      border: InputBorder.none,
-                    ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Add New Task',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24.0,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-              Container(
-                margin: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListTile(
-                  leading: const Icon(Icons.description, color: Colors.blue),
-                  title: TextField(
-                    controller: description,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      labelStyle: TextStyle(color: Colors.blue),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ),
-              Container(
-                margin: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListTile(
-                  leading: const Icon(Icons.timer, color: Colors.blue),
-                  title: TextField(
-                    controller: duration,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: <TextInputFormatter>[
-                      FilteringTextInputFormatter.digitsOnly
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Enter Duration',
-                      labelStyle: TextStyle(color: Colors.blue),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ),
-              Container(
+                Container(
                   margin: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: ListTile(
-                    leading: const Icon(Icons.flag, color: Colors.blue),
-                    title: DropdownButtonFormField<String>(
-                      value: status.text.isNotEmpty ? status.text : null,
+                    leading: const Icon(Icons.title, color: Colors.blue),
+                    title: TextField(
+                      controller: titlecontroller,
                       decoration: const InputDecoration(
-                        labelText: 'Select Status',
-                        labelStyle:
-                            TextStyle(color: Colors.blue, fontSize: 18.0),
+                        labelText: 'Enter Title',
+                        labelStyle: TextStyle(color: Colors.blue),
                         border: InputBorder.none,
                       ),
-                      items: ['Not Started', 'In Progress', 'Completed']
-                          .map((String value) {
-                        Color textColor;
-                        switch (value) {
-                          case 'Not Started':
-                            textColor = Colors.red;
-                            break;
-                          case 'In Progress':
-                            textColor = Colors.yellow;
-                            break;
-                          case 'Completed':
-                            textColor = Colors.green;
-                            break;
-                          default:
-                            textColor = Colors.black;
-                        }
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(
-                            value,
-                            style: TextStyle(color: textColor),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          status.text = newValue!;
-                        });
-                      },
                     ),
-                  )),
-              Container(
-                margin: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                child: ListTile(
-                  leading: const Icon(Icons.calendar_today, color: Colors.blue),
-                  title: TextButton(
-                    onPressed: () {
-                      showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(DateTime.now().year),
-                        lastDate: DateTime(DateTime.now().year + 5),
-                      ).then((DateTime? value) {
-                        if (value != null) {
-                          setState(() {
-                            dueDate.text = value.toString();
-                          });
-                        }
-                      });
-                    },
-                    child: Text(
-                      dueDate.text.isEmpty ? 'Select Due Date' : dueDate.text,
-                      style: TextStyle(
-                        color: dueDate.text.isEmpty ? Colors.blue : Colors.blue,
+                Container(
+                  margin: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(Icons.description, color: Colors.blue),
+                    title: TextField(
+                      controller: description,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        labelStyle: TextStyle(color: Colors.blue),
+                        border: InputBorder.none,
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: ElevatedButton(
-                  onPressed: addTask,
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 15,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
+                Container(
+                  margin: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(
-                    widget.task == null ? 'Add Task' : 'Update Task',
-                    style: const TextStyle(fontSize: 16),
+                  child: ListTile(
+                    leading: const Icon(Icons.timer, color: Colors.blue),
+                    title: TextField(
+                      controller: duration,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: <TextInputFormatter>[
+                        FilteringTextInputFormatter.digitsOnly
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Enter Duration',
+                        labelStyle: TextStyle(color: Colors.blue),
+                        border: InputBorder.none,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                Container(
+                    margin: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.flag, color: Colors.blue),
+                      title: DropdownButtonFormField<String>(
+                        value: status.text.isNotEmpty ? status.text : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Select Status',
+                          labelStyle:
+                              TextStyle(color: Colors.blue, fontSize: 18.0),
+                          border: InputBorder.none,
+                        ),
+                        items: ['Not Started', 'In Progress', 'Completed']
+                            .map((String value) {
+                          Color textColor;
+                          switch (value) {
+                            case 'Not Started':
+                              textColor = Colors.red;
+                              break;
+                            case 'In Progress':
+                              textColor = Colors.yellow;
+                              break;
+                            case 'Completed':
+                              textColor = Colors.green;
+                              break;
+                            default:
+                              textColor = Colors.black;
+                          }
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(
+                              value,
+                              style: TextStyle(color: textColor),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            status.text = newValue!;
+                          });
+                        },
+                      ),
+                    )),
+                Container(
+                  margin: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ListTile(
+                    leading:
+                        const Icon(Icons.calendar_today, color: Colors.blue),
+                    title: TextButton(
+                      onPressed: () {
+                        showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(DateTime.now().year),
+                          lastDate: DateTime(DateTime.now().year + 5),
+                        ).then((DateTime? value) {
+                          if (value != null) {
+                            setState(() {
+                              dueDate.text = value.toString();
+                            });
+                          }
+                        });
+                      },
+                      child: Text(
+                        dueDate.text.isEmpty ? 'Select Due Date' : dueDate.text,
+                        style: TextStyle(
+                          color:
+                              dueDate.text.isEmpty ? Colors.blue : Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: addTask,
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: Text(
+                      widget.task == null ? 'Add Task' : 'Update Task',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
